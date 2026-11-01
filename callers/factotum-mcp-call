@@ -1,0 +1,27 @@
+#!/bin/bash
+# factotum-mcp-call: invoke a tool on the factotum-mcp server on the
+# Host1 (127.0.0.1:7901).
+#
+# Usage: factotum-mcp-call <tool-name> '<json-args>'
+#        factotum-mcp-call __list            # list tool names
+#
+# Factotum is the owner's general Mac helper: a signed app (bundle
+# io.example.factotum) in the GUI session plus this registry-driven MCP.
+# Tools: factotum_apps, factotum_actions, factotum_invoke (native dispatch
+# only; delete/outward refused, catalog returns a pointer),
+# factotum_registry, factotum_discovery_run. The registry lives at
+# ~/Library/Application Support/Factotum/registry.json on the Host1.
+# NOTE: the Host1 deployment of factotum-mcp lands with the Host1
+# Factotum app; until then this caller will fail to connect, by design.
+# The origin secret is read transiently on the Host1 from
+# ~/services/factotum-mcp/.env; nothing secret touches this machine's disk.
+set -euo pipefail
+TOOL="${1:?usage: factotum-mcp-call <tool-name|__list> '<json-args>'}"
+ARGS='{}'
+[ $# -ge 2 ] && ARGS="$2"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARGS_B64="$(printf '%s' "$ARGS" | base64 -w0)"
+ssh -o BatchMode=yes -o ConnectTimeout=30 "${FACTOTUM_MCP_SSH_HOST:-host1}" \
+  "python3 -" \
+  7901 "$TOOL" "$ARGS_B64" ~/services/factotum-mcp/.env ORIGIN_SHARED_SECRET \
+  < "$SCRIPT_DIR/factotum_mcp_client.py"

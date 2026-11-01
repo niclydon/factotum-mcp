@@ -1,0 +1,16 @@
+# Secrets — never commit
+.env
+*.env
+.secrets/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Runtime state
+*.log
+registry.json
+
+# OS / editor
+.DS_Store

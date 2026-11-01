@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- factotum-gateway LaunchAgent template. install.sh renders the
+     __PYTHON__ and __HOME__ placeholders for the target host.
+     Label: io.example.factotum-gateway (its own agent; factotum-mcp
+     keeps io.example.factotum-mcp on loopback 7901). -->
+<plist version="1.0">
+<dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>io.example.factotum-gateway</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__PYTHON__</string>
+		<string>__HOME__/services/factotum-gateway/server.py</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/services/factotum-gateway/service.log</string>
+	<key>StandardOutPath</key>
+	<string>__HOME__/services/factotum-gateway/service.log</string>
+	<key>WorkingDirectory</key>
+	<string>__HOME__/services/factotum-gateway</string>
+</dict>
+</plist>

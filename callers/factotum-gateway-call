@@ -1,0 +1,39 @@
+#!/bin/bash
+# factotum-gateway-call: invoke a tool on the factotum-gateway on
+# host1 (port 7902, bound to the tailnet interface only, D12).
+#
+# Usage: factotum-gateway-call <tool-name> '<json-args>'
+#        factotum-gateway-call __list            # list tools (full)
+#
+# The gateway is the per-host MCP front door (Factotum 2.0 W1): its
+# tool surface is generated from the host's Factotum registry — one
+# tool per action (dots/dashes in action ids become underscores), one
+# service.<id> tool per registered service, plus gateway.health and
+# gateway.catalog. Delete/outward actions refuse a plain call and
+# return a D10 preview + single-use preview_token.
+#
+# Auth (D2): ONE shared bearer token per host, supplied through
+# the environment (public-export secret resolution):
+#   FACTOTUM_GATEWAY_TOKEN     the gateway token for this host (required)
+#   FACTOTUM_GATEWAY_BIND      the gateway bind address for this host (required)
+#   FACTOTUM_GATEWAY_PORT      gateway port (default 7902)
+#   FACTOTUM_GATEWAY_SSH_HOST  ssh alias for this host (default host1)
+# The wrapper passes the token to the client via a stdin payload —
+# never argv, never a file on the host. The caller-claimed consumer
+# identity defaults to "caller" (FACTOTUM_GATEWAY_CONSUMER overrides
+# it); the gateway audit records the claim, not a cryptographic
+# identity.
+set -euo pipefail
+TOOL="${1:?usage: factotum-gateway-call <tool-name|__list> '<json-args>'}"
+ARGS='{}'
+[ $# -ge 2 ] && ARGS="$2"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOKEN="${FACTOTUM_GATEWAY_TOKEN:?set FACTOTUM_GATEWAY_TOKEN to the gateway token for this host}"
+BIND="${FACTOTUM_GATEWAY_BIND:?set FACTOTUM_GATEWAY_BIND to the gateway bind address for this host}"
+PORT="${FACTOTUM_GATEWAY_PORT:-7902}"
+CONSUMER="${FACTOTUM_GATEWAY_CONSUMER:-caller}"
+PAYLOAD="$(TOOL="$TOOL" ARGS="$ARGS" TOKEN="$TOKEN" BIND="$BIND" PORT="$PORT" CONSUMER="$CONSUMER" python3 -c 'import json,os; print(json.dumps({"token": os.environ["TOKEN"], "bind": os.environ["BIND"], "port": os.environ["PORT"], "tool": os.environ["TOOL"], "args": json.loads(os.environ["ARGS"] or "{}"), "consumer": os.environ["CONSUMER"]}))')"
+BOOTSTRAP="import sys,os,json; d=json.loads(sys.stdin.readline()); os.environ['GW_PAYLOAD']=json.dumps(d); src=sys.stdin.read(); exec(compile(src,'factotum_gateway_client.py','exec'),{'__name__':'__main__'})"
+{ printf '%s\n' "$PAYLOAD"; cat "$SCRIPT_DIR/factotum_gateway_client.py"; } | \
+  ssh -o BatchMode=yes -o ConnectTimeout=30 "${FACTOTUM_GATEWAY_SSH_HOST:-host1}" \
+  "python3 -c \"$BOOTSTRAP\""
